@@ -1,0 +1,50 @@
+qlib_init:
+  provider_uri: "~/.qlib/qlib_data/cn_data"
+  region: cn
+market: &market csi300
+benchmark: &benchmark SH000300
+
+data_handler_config: &data_handler_config
+  start_time: 2008-01-01
+  end_time: 2024-12-31
+  fit_start_time: 2009-01-01
+  fit_end_time: 2019-12-31 # should be equal to train_period[1]
+  instruments: *market
+  infer_processors: # infer + learn
+    - class: RobustZScoreNorm
+      kwargs:
+        fields_group: feature
+        clip_outlier: true
+    - class: Fillna
+      kwargs:
+        fields_group: feature
+    - class: RobustZScoreNorm
+      kwargs:
+        fields_group: prior
+        clip_outlier: true 
+    - class: Fillna
+      kwargs:
+        fields_group: prior
+
+  learn_processors: # only learn
+    - class: DropnaLabel
+    - class: CSRankNorm # CSRankNorm
+      kwargs:
+        fields_group: label
+
+  label: ["Ref($close, -5) / Ref($close, -1) - 1"]  # 5-day forward return: close(t+5) / close(t+1) - 1
+
+task:
+  dataset:
+    class: TSDatasetH
+    module_path: qlib.contrib.data.dataset
+    kwargs:
+      handler:
+        class: Alpha158
+        module_path: qlib.contrib.data.handler
+        kwargs: *data_handler_config
+      segments:
+        train: [2009-01-01, 2019-12-31]
+        valid: [2020-01-01, 2021-12-31]
+        test:  [2022-01-01, 2024-12-31]
+      step_len: 20

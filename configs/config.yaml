@@ -1,0 +1,90 @@
+vqvae:
+  num_features: 158
+  seq_len: 20 
+  hidden_size: 128     
+  num_prior_factors: 13  
+  vq_embed_dim: 128   
+  num_embed: 512    
+
+  encoder:
+    num_heads: 2 
+    num_layers: 1
+
+  quantizer:
+    decay: 0.95
+    commit_weight: 0.25
+    distance: 'l2'
+    anchor: 'probrandom'
+    first_batch: False
+    contras_loss: True
+
+  decoder:
+    norm_type: 'none'
+    num_groups: 8
+    hidden_channels: 128
+    initial_T: 5
+
+  predictor:
+    pred_len: 10 
+    num_gru_layers: 1
+    dropout: 0.1 
+    output_dim: 1
+    pred_weight: 0.0001
+
+data:
+  universe: 'sp500' # !
+  data_path: 'dataset/data'
+  window_size: 20
+  step: 1
+  train_period : ["2009-01-01", "2019-12-31"]  # 10 years
+  valid_period : ["2020-01-01", "2021-12-31"]  # 2 years
+  test_period  : ["2022-01-01", "2024-12-31"]  # 3 years
+
+#sp500: sp500_h128_VQK512_C128_emb128_dl2p10_s42-epoch=28-val_loss=0.7354.ckpt
+predictor: #csi300 : "csi300_h128_VQK512_C128_emb128_dl2p10_s42-epoch=8-val_loss=0.5882.ckpt"
+  saved_model: "sp500_h128_VQK512_C128_emb128_dl2p10_s42-epoch=28-val_loss=0.7354.ckpt"
+  num_features: 158
+  individual: False
+  aux_weight: 0.001 # ! csi300 : 0.01, sp500 : 0.001
+  kernel_size: 3
+  k: ${half:${predictor.n_expert}} 
+  n_expert: 8   # ! csi300: 2, sp500: 8
+  pred_len: 20  
+  moe_hidden: 64 
+  dropout: 0.1
+
+  transformer:
+    pe_kind: 'rope'
+    num_heads: 4  #! csi300: 2, sp500: 4
+    num_layers: 1
+    d_model: 64   
+    dim_feedforward: 128
+    dropout: 0.1 
+    batch_first: True
+    prepend_structure_token: True
+ 
+  rank : 0
+  target_day: 5
+  use_prior: True
+  aux_imp: 3
+  
+train:
+  seed: 0 # 
+  device: "cuda"
+  batch_size: 300 
+  learning_rate: 0.0001 
+  num_epochs: 70
+  project_name: "PRISM-VQ"
+  run_name: "auto"
+  gpu_counts: 1
+  precision: 32 
+  num_workers: 4
+  gradient_clip_val: 1
+  save_dir: "checkpoints"
+  save_res: "res"
+  early_stopping:
+    monitor: "val_loss"
+    min_delta: 0.00001
+    patience: 15
+    verbose: True
+    mode: "min"
